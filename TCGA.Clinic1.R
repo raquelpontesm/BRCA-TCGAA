@@ -1,6 +1,5 @@
-###### TCGA Clinical Data Analysis #######
-# cleaning and exploring dataset 
-# using Tidyverse whenever possible
+########## TCGA-BRCA Clinical Data ###########
+# cleaning & exploring dataset with Tidyverse
 
 
 install.packages("tidyverse", dependencies = TRUE)
@@ -16,272 +15,224 @@ library(finalfit)
 ## 1. Data importing and visualizing ---------------------------
 # Download clinical data at GDC (select primary site, project and choose 'clinical' at exploration page).
 # Using read_csv or read_delim, na = c("", "NA")
-kirc_clin_raw <- read_delim("kirc_tcga_clinical_data.tsv", "\t", 
+brca_clin_raw <- read_delim("~/Google Drive/BRCA-TCGAA/Data/brca_tcga_clinical_data.tsv", "\t", 
                             escape_double = FALSE, 
                             trim_ws = TRUE)
 
-class(kirc_clin_raw) 
-dim(kirc_clin_raw) 
-names(kirc_clin_raw) 
-glimpse(kirc_clin_raw)
-skim(kirc_clin_raw) 
-#View(kirc_clin_raw)
+class(brca_clin_raw) 
+dim(brca_clin_raw) 
+names(brca_clin_raw) 
+glimpse(brca_clin_raw)
+skim(brca_clin_raw) 
+#View(brca_clin_raw)
 
 
 ## 2. Cleaning data ---------------------------
 # Select variables based on NA count (> 50% complete is a good choice!)
 # ToDo: function to select variables with % completeness  
 
-NA_fifty <- dim(kirc_clin_raw)[1]/2
+NA_fifty <- dim(brca_clin_raw)[1]/2
 
-NA_sum <- colSums(is.na(kirc_clin_raw))
+NA_sum <- colSums(is.na(brca_clin_raw))
 NA_sum <- as.data.frame(NA_sum)
 NA_sum <- tibble::rownames_to_column(NA_sum, "variables")
 NA_sum <- NA_sum %>%
      filter(NA_sum < NA_fifty)
 
-kirc_clean <- kirc_clin_raw %>%
+brca_clean <- brca_clin_raw %>%
      select(one_of(NA_sum$variables))
 
-
 ## Remove duplicate observations
-kirc_clean0 <- kirc_clean %>%
+brca_clean1 <- brca_clean %>%
      distinct_at('Patient ID', .keep_all = TRUE)
 
-## Remove numeric variables with unique observations  
+## Numeric variables 
+# Remove variables with unique observations and non-related ones
 # ToDo: function to select variables with unique observations? 
-kirc_clean0 %>%
+brca_clean1 %>%
      select_if(is.numeric) %>%
      skim()
 
-kirc_clean1 <-  kirc_clean0  %>%
-     select(!c('Last Alive Less Initial Pathologic Diagnosis Date Calculated Day Value', 
-               'Number of Samples Per Patient', 
+brca_clean2 <-  brca_clean1  %>%
+     select(!c('Days to Sample Collection.',
+               'Last Alive Less Initial Pathologic Diagnosis Date Calculated Day Value',
+               'Positive Finding Lymph Node Hematoxylin and Eosin Staining Microscopy Count',
+               'Lymph Node(s) Examined Number',
+               'Number of Samples Per Patient',
+               'Sample Initial Weight',
                'Sample type id'))
 
-
-# Remove character variables with unique observations 
-kirc_clean1 %>%
+## Character variables 
+# Remove character variables with unique observation, similar information, or not related - check each one! 
+brca_clean2 %>%
      select_if(is.character) %>%
      skim()
 
-kirc_clean2 <- kirc_clean1  %>%
-     select(!c('Study ID', 'Cancer Type', 'Cancer Type Detailed', 
-               'Neoplasm Histologic Type Name', 'ICD-10 Classification', 
+brca_clean3 <- brca_clean2  %>%
+     select(!c('Study ID','Sample ID','American Joint Committee on Cancer Publication Version Type',
+               'Cancer Type', 'Cancer Type Detailed', 'Form completion date','HER2 ihc score',
+               'Neoplasm Histologic Type Name','ICD-10 Classification', 
+               'International Classification of Diseases for Oncology, Third Edition ICD-O-3 Histology Code',
                'International Classification of Diseases for Oncology, Third Edition ICD-O-3 Site Code', 
-               'Informed consent verified', 'Is FFPE', 'Oncotree Code', 'Sample Type', 'Tumor Tissue Site'))
+               'Informed consent verified','Is FFPE',
+               'Primary Lymph Node Presentation Assessment Ind-3',
+               'First Pathologic Diagnosis Biospecimen Acquisition Method Type',
+               'Other Patient ID', 'Other Sample ID', 'Pathology Report File Name',
+               'Pathology report uuid','Disease Surgical Margin Status',
+               'Patient Primary Tumor Site','Tissue Prospective Collection Indicator',
+               'Tissue Retrospective Collection Indicator','Sample Type',
+               'Sex','Tumor Tissue Site','Tissue Source Site','Vial number'))
 
+skim(brca_clean3)
 
-# Remove character variables with similar information - check each one!
-# kirc_clean2 %>%
-#      select_if(is.character) %>%
-#      skim()
-table(kirc_clean2$`Overall Survival Status`, exclude = NULL)
-table(kirc_clean2$`Patient's Vital Status`, exclude = NULL)
-
-kirc_clean3 <- kirc_clean2  %>%
-     select(!c('Sample ID', 'Other Patient ID', 'Other Sample ID', 'Pathology Report File Name', 'Pathology report uuid', "Patient's Vital Status"))
-
-
-# Remove other variables not directly related to patient - check each one!
-# kirc_clean3 %>%
-#      select_if(is.character) %>%
-#      skim()
-
-kirc_clean4 <- kirc_clean3  %>%
-     select(!c('Form completion date','International Classification of Diseases for Oncology, Third Edition ICD-O-3 Histology Code','Primary Lymph Node Presentation Assessment Ind-3', 'Tissue Prospective Collection Indicator', 'Tissue Retrospective Collection Indicator','Vial number'))
+## Logical variables
+brca_clean3 <- brca_clean3  %>%
+     select(!'Oct embedded')
 
 
 ## 3. Changing variables names ---------------------------
 # Using snake_style 
 
-kirc_clean4 <- kirc_clean4 %>%
-     rename(patient_id = 'Patient ID',
-            age = 'Diagnosis Age',
-            metastasis_stg = 'American Joint Committee on Cancer Metastasis Stage Code',
-            lymph_stg = 'Neoplasm Disease Lymph Node Stage American Joint Committee on Cancer Code',
-            neoplasm_stg = 'Neoplasm Disease Stage American Joint Committee on Cancer Code',
-            tumor_stg = 'American Joint Committee on Cancer Tumor Stage Code',
-            disease_free_mth = 'Disease Free (Months)',
-            disease_free_stt = 'Disease Free Status',
-            ethnicity = 'Ethnicity Category', 
-            frac_genome_alter = 'Fraction Genome Altered',
-            histology_grd = 'Neoplasm Histologic Grade',
-            hemoglobin = 'Hemoglobin level',
-            neoadj_therapy = 'Neoadjuvant Therapy Type Administered Prior To Resection Text',
-            prior_cancer = 'Prior Cancer Diagnosis Occurence',
-            year_diagnose = 'Year Cancer Initial Diagnosis',
-            tumor_lateral = 'Primary Tumor Laterality',
-            long_dim = 'Longest Dimension',
-            mutation_cnt = 'Mutation Count',
-            over_surv_mth = 'Overall Survival (Months)',
-            over_surv_stt = 'Overall Survival Status',
-            platelet = 'Platelet count',
-            race = 'Race Category',
-            serum_ca = 'Serum calcium level',
-            gender = 'Sex',
-            short_dim = 'Shortest Dimension',
-            second_long_dim = 'Specimen Second Longest Dimension',
-            tissue_site = 'Tissue Source Site',
-            person_neoplasm_stt = 'Person Neoplasm Status',
-            wbc = 'WBC')
+colnames(brca_clean3) <- tolower(colnames(brca_clean3))
+colnames(brca_clean3) <- str_replace_all(colnames(brca_clean3), "[' ']", "_")
+
+brca_clean3 <- brca_clean3 %>%
+     rename(patient_id = 'patient_id',
+            age = 'diagnosis_age',
+            metastasis_stg = 'american_joint_committee_on_cancer_metastasis_stage_code',
+            lymph_stg = 'neoplasm_disease_lymph_node_stage_american_joint_committee_on_cancer_code',
+            neoplasm_stg = 'neoplasm_disease_stage_american_joint_committee_on_cancer_code',
+            tumor_stg = 'american_joint_committee_on_cancer_tumor_stage_code',
+            disease_free_mth = 'disease_free_(months)',
+            disease_free_stt = 'disease_free_status',
+            er_stt = 'er_status_by_ihc',
+            ethnicity = 'ethnicity_category', 
+            frac_genome_alter = 'fraction_genome_altered',
+            neoadj_therapy = 'neoadjuvant_therapy_type_administered_prior_to_resection_text',
+            prior_cancer = 'prior_cancer_diagnosis_occurence',
+            her2_stt = 'ihc-her2',
+            year_diagnose = 'year_cancer_initial_diagnosis',
+            menopause = 'menopause_status',
+            micromet = 'micromet_detection_by_ihc',
+            mutation_cnt = 'mutation_count',
+            oncotree = 'oncotree_code',
+            over_surv_mth = 'overall_survival_(months)',
+            over_surv_stt = 'overall_survival_status',
+            pr_stt = 'pr_status_by_ihc',
+            race = 'race_category',
+            surgical = 'surgical_procedure_first',
+            person_neo_stt = 'person_neoplasm_status')
 
 
 ## 4. Taming data ------------------------------------------
 # Use lubridate for dates
-kirc_clean4 <- kirc_clean4 %>%
+brca_clean3 <- brca_clean3 %>%
      mutate_if(is.character, as.factor) %>%
-     mutate(patient_id = as.character(patient_id),
-            age = as.integer(age),
-            year_diagnose = as.integer(year_diagnose))
+     mutate(patient_id = as.character(patient_id))
 
 
 ## 5. Checking NA patterns -----------------------------
 # Check distincts types of NAs: MCAR, MAR, MNAR
-kirc_clean4  %>%
+brca_clean3  %>%
      missing_plot()
 
-missing_glimpse(kirc_clean4)
+missing_glimpse(brca_clean3)
 
 
 ## 6. Checking numeric variables -----------------------------
 # Check data distribution, unplausible values, outliers.
 # Never delete an unusual value if the value is a possible one. 
 # Deleting unusual values will bias your results and cause you to underestimate the variability in the observations.
-
-# ToDo: codigo para fazer plot de todas as variaveis numericas de uma vez. 
-
-# Describing numeric variables with summary().
-# If the median and mean are similar, the distribution is likely roughly symmetrical. 
-# Otherwise, it will be skewed to the right or to the left.
-kirc_clean4 %>%
+brca_clean3 %>%
      select_if(is.numeric) %>%
      summary()
 
-# Histograms or density plots
-ggplot(kirc_clean4, aes(age)) +
+brca_clean3$disease_free_mth[brca_clean3$disease_free_mth == -0.23] <- 0.23
+brca_clean3$over_surv_mth[brca_clean3$over_surv_mth == -0.23] <- 0.23
+
+# Graphics
+ggplot(brca_clean3, aes(age)) +
      geom_histogram(bins = 20, alpha = 0.8, color = "red")
 
-ggplot(kirc_clean4, aes(year_diagnose)) +
-     geom_density(color = "red")
+ggplot(brca_clean3, aes(disease_free_mth)) +
+     geom_histogram(bins = 20, alpha = 0.8, color = "red")
 
+ggplot(brca_clean3, aes(year_diagnose)) +
+     geom_bar(stat="count")
+
+ggplot(brca_clean3, aes(over_surv_mth)) +
+     geom_histogram(bins = 20, alpha = 0.8, color = "red")
 
 # Boxplots 
 # Inter quartil range (IQR) = Q3 — Q1
 # whiskers = ±1.58 IQR / √n ∗ IQR, where ‘n’ = samples
 # Outliers = values below or above min and max whiskers values, respectively
-     
-ggplot(kirc_clean4, aes(x ='', y=disease_free_mth)) +
-     geom_boxplot(width = .5) +
-     geom_jitter(width = 0.05, alpha = 0.2, color = "orange")
-boxplot.stats(kirc_clean4$disease_free_mth)
 
-ggplot(kirc_clean4, aes(x ='', y=frac_genome_alter)) +
+ggplot(brca_clean3, aes(x ='', y=frac_genome_alter)) +
      geom_boxplot(width = .5) +
      geom_jitter(width = 0.05, alpha = 0.2, color = "orange")
-boxplot.stats(kirc_clean4$frac_genome_alter)
+boxplot.stats(brca_clean3$frac_genome_alter)
 
-ggplot(kirc_clean4, aes(x ='', y=long_dim)) +
+ggplot(brca_clean3, aes(x ='', y=mutation_cnt, na.rm = TRUE)) +
      geom_boxplot(width = .5) +
      geom_jitter(width = 0.05, alpha = 0.2, color = "orange")
-boxplot.stats(kirc_clean4$long_dim)
-
-ggplot(kirc_clean4, aes(x ='', y=mutation_cnt)) +
-     geom_boxplot(width = .5) +
-     geom_jitter(width = 0.05, alpha = 0.2, color = "orange")
-boxplot.stats(kirc_clean4$mutation_cnt)
-
-ggplot(kirc_clean4, aes(x ='', y=over_surv_mth)) +
-     geom_boxplot(width = .5) +
-     geom_jitter(width = 0.05, alpha = 0.2, color = "orange")
-boxplot.stats(kirc_clean4$over_surv_mth)
-
-ggplot(kirc_clean4, aes(x ='', y=short_dim)) +
-     geom_boxplot(width = .5) +
-     geom_jitter(width = 0.05, alpha = 0.2, color = "orange")
-boxplot.stats(kirc_clean4$short_dim)
-
-ggplot(kirc_clean4, aes(x ='', y=second_long_dim)) +
-     geom_boxplot(width = .5) +
-     geom_jitter(width = 0.05, alpha = 0.2, color = "orange")
-boxplot.stats(kirc_clean4$second_long_dim)
+boxplot.stats(brca_clean3$mutation_cnt)
 
 
 ## 7. Checking categorical variables --------------------------
 # Check frequency, lables and levels 
 # Cancer staging: https://www.cancer.gov/about-cancer/diagnosis-staging/staging
-
-kirc_clean4 %>%
-     select_if(is.factor) %>%
-     summary() 
-
-# To do: fct_drop to drop unused levels
+brca_clean3 %>%
+select_if(is.factor) %>%
+summary()
 
 # agregating levels
-kirc_clin <- kirc_clean4 %>%
+brca_clean3 <- brca_clean3 %>%
      mutate(tumor_stg = fct_collapse(tumor_stg,
-                                     T1 = c('T1', 'T1a', 'T1b'),
-                                     T2 = c('T2', 'T2a', 'T2b'),
-                                     T3 = c('T3', 'T3a', 'T3b', 'T3c')))
+                                     T1 = c('T1','T1a','T1b','T1c'),
+                                     T2 = c('T2','T2a','T2b'),
+                                     T3 = c('T3','T3a'),
+                                     T4 = c('T4','T4b','T4d')))
 
-kirc_clin <- kirc_clin %>%
-     mutate(prior_cancer = fct_collapse(prior_cancer, 
-                                        Yes = c('Yes', 'Yes, History of Prior Malignancy', 'Yes, History of Synchronous/Bilateral Malignancy')))
-
-kirc_clin <- kirc_clin %>%
-     mutate(gender = fct_collapse(gender, Male = c('MALE', 'Male')))
-
-kirc_clin <- kirc_clin %>%
-     mutate(tissue_site = fct_collapse(tissue_site,
-                                       A = c('A3', 'AK', 'AS'),
-                                       B = c('B0', 'B2', 'B4', 'B8', 'BP'),
-                                       C = c('CJ', 'CW', 'CZ')),
-            tissue_site = fct_lump(tissue_site, 3, other_level = "OTHERS"))
 
 # changing level names
-kirc_clin <- kirc_clin %>%
-     mutate(ethnicity = fct_recode(ethnicity, 'hispanic/latino'='HISPANIC OR LATINO', 'not hispanic/latino'='NOT HISPANIC OR LATINO'),
-            race = fct_recode(race, Asian='ASIAN', 'Black/African.american'='BLACK OR AFRICAN AMERICAN', White='WHITE'),
-            person_neoplasm_stt = fct_recode(person_neoplasm_stt, Tumor.Free='TUMOR FREE', With.Tumor='WITH TUMOR'))
+brca_clean3 <- brca_clean3 %>%
+     mutate(disease_free_stt = fct_recode(disease_free_stt, DiseaseFree='0:DiseaseFree', RecurrProgress='1:Recurred/Progressed'),
+          ethnicity = fct_recode(ethnicity, 'hispanic/latino'='HISPANIC OR LATINO', 'not hispanic/latino'='NOT HISPANIC OR LATINO'),
+          menopause = fct_recode(menopause, Intermediate='Indeterminate (neither Pre or Postmenopausal)', Peri='Peri (6-12 months since last menstrual period)', Post='Post (prior bilateral ovariectomy OR >12 mo since LMP with no prior hysterectomy)', Pre='Pre (<6 months since LMP AND no prior bilateral ovariectomy AND not on estrogen replacement)'),
+          over_surv_stt = fct_recode(over_surv_stt, living='0:LIVING', deceased='1:DECEASED'),
+          race = fct_recode(race, Asian='ASIAN', 'Black/African.american'='BLACK OR AFRICAN AMERICAN', White='WHITE'),
+          staging_system = fct_recode(staging_system, AxilLN='Axillary lymph node dissection alone', NoAxil='No axillary staging', Other='Other (specify)', SentinelAxil='Sentinel lymph node biopsy plus axillary dissection', SentinelLN='Sentinel node biopsy alone'),
+          surgical = fct_recode(surgical, RadicalMastectomy='Modified Radical Mastectomy', SimpleMastectomy='Simple Mastectomy'),
+          person_neo_stt = fct_recode(person_neo_stt, TumorFree='TUMOR FREE', WithTumor='WITH TUMOR'))
 
-# kirc_clin <- kirc_clin %>%
-#      mutate(gender = if_else(gender %in% c('Male', 'Female'), 1, 0))
-
-kirc_clin %>%
-     select_if(is.factor) %>%
-     summary()
 
 # to visualize
-kirc_clin %>% 
-count(tissue_site) %>% 
-     knitr::kable()
+# brca_clean3 %>% 
+# count(tissue_site) %>% 
+#      knitr::kable()
+# 
+# brca_clean3 %>% 
+#      ggplot(aes(x = tissue_site, fill = tissue_site)) + 
+#      geom_bar() +
+#      theme_bw(15) +
+#      xlab("tissue site") + 
+#      ylab("frequency") + 
+#      theme(legend.position = 'none')
+# 
+# brca_clean3 %>% 
+# ggplot(aes(x = tissue_site, y = age, fill = tissue_site)) + 
+#      geom_boxplot() +
+#      theme_bw(15) +
+#      xlab("tissue site") + 
+#      ylab("age") + 
+#      facet_wrap(~ gender) +
+#      theme(legend.position = 'none')
 
-kirc_clin %>% 
-     ggplot(aes(x = tissue_site, fill = tissue_site)) + 
-     geom_bar() +
-     theme_bw(15) +
-     xlab("tissue site") + 
-     ylab("frequency") + 
-     theme(legend.position = 'none')
-
-kirc_clin %>% 
-ggplot(aes(x = tissue_site, y = age, fill = tissue_site)) + 
-     geom_boxplot() +
-     theme_bw(15) +
-     xlab("tissue site") + 
-     ylab("age") + 
-     facet_wrap(~ gender) +
-     theme(legend.position = 'none')
-
-
-## 8. Correcting and checking again -----------------------
-kirc_clin$disease_free_mth[kirc_clin$disease_free_mth == -11.79] <- 11.79
-kirc_clin$disease_free_mth[kirc_clin$disease_free_mth == -0.62] <- 0.62
-
-skim(kirc_clin)
+skim(brca_clean3)
 
 
-## 9. Saving dataset ------------------------------------
-write_csv(kirc_clin, path = "your_path_here/kirc_clin.csv")
+## 8. Saving dataset ------------------------------------
+write_csv(brca_clean3, path = "~/Google Drive/BRCA-TCGAA/Data/brca_clin.csv")
 
-rm(kirc_clean3, kirc_clean2, kirc_clean1, kirc_clean0, kirc_clean, kirc_clin_raw, NA_sum, NA_fifty)
+rm(brca_clean3, brca_clean2, brca_clean1, brca_clean, brca_clin_raw, NA_sum, NA_fifty)
