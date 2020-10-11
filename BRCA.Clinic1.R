@@ -56,11 +56,15 @@ brca_clean1 %>%
 brca_clean2 <-  brca_clean1  %>%
      select(!c('Days to Sample Collection.',
                'Last Alive Less Initial Pathologic Diagnosis Date Calculated Day Value',
+               'HER2 ihc score',
                'Positive Finding Lymph Node Hematoxylin and Eosin Staining Microscopy Count',
                'Lymph Node(s) Examined Number',
                'Number of Samples Per Patient',
                'Sample Initial Weight',
                'Sample type id'))
+
+# HER2 ihc score ~ ER Status By IHC
+
 
 ## Character variables 
 # Remove character variables with unique observation, similar information, or not related - check each one! 
@@ -70,7 +74,11 @@ brca_clean2 %>%
 
 brca_clean3 <- brca_clean2  %>%
      select(!c('Study ID','Sample ID','American Joint Committee on Cancer Publication Version Type',
-               'Cancer Type', 'Cancer Type Detailed', 'Form completion date','HER2 ihc score',
+               'American Joint Committee on Cancer Metastasis Stage Code',
+               'Neoplasm Disease Lymph Node Stage American Joint Committee on Cancer Code',
+               'American Joint Committee on Cancer Publication Version Type',
+               'American Joint Committee on Cancer Tumor Stage Code',
+               'Cancer Type', 'Cancer Type Detailed', 'Form completion date',
                'Neoplasm Histologic Type Name','ICD-10 Classification', 
                'International Classification of Diseases for Oncology, Third Edition ICD-O-3 Histology Code',
                'International Classification of Diseases for Oncology, Third Edition ICD-O-3 Site Code', 
@@ -83,6 +91,7 @@ brca_clean3 <- brca_clean2  %>%
                'Tissue Retrospective Collection Indicator','Sample Type',
                'Sex','Tumor Tissue Site','Tissue Source Site','Vial number'))
 
+# Oncotree ~ Cancer Type Detailed, Neoplasm Histologic Type Name
 skim(brca_clean3)
 
 ## Logical variables
@@ -99,10 +108,7 @@ colnames(brca_clean3) <- str_replace_all(colnames(brca_clean3), "[' ']", "_")
 brca_clean3 <- brca_clean3 %>%
      rename(patient_id = 'patient_id',
             age = 'diagnosis_age',
-            metastasis_stg = 'american_joint_committee_on_cancer_metastasis_stage_code',
-            lymph_stg = 'neoplasm_disease_lymph_node_stage_american_joint_committee_on_cancer_code',
             neoplasm_stg = 'neoplasm_disease_stage_american_joint_committee_on_cancer_code',
-            tumor_stg = 'american_joint_committee_on_cancer_tumor_stage_code',
             disease_free_mth = 'disease_free_(months)',
             disease_free_stt = 'disease_free_status',
             er_stt = 'er_status_by_ihc',
@@ -128,8 +134,9 @@ brca_clean3 <- brca_clean3 %>%
 # Use lubridate for dates
 brca_clean3 <- brca_clean3 %>%
      mutate_if(is.character, as.factor) %>%
-     mutate(patient_id = as.character(patient_id))
-
+     mutate(patient_id = as.character(patient_id),
+            age = as.integer(age),
+            year_diagnose = as.integer(year_diagnose))
 
 ## 5. Checking NA patterns -----------------------------
 # Check distincts types of NAs: MCAR, MAR, MNAR
@@ -187,25 +194,28 @@ select_if(is.factor) %>%
 summary()
 
 # agregating levels
-brca_clean3 <- brca_clean3 %>%
-     mutate(tumor_stg = fct_collapse(tumor_stg,
-                                     T1 = c('T1','T1a','T1b','T1c'),
-                                     T2 = c('T2','T2a','T2b'),
-                                     T3 = c('T3','T3a'),
-                                     T4 = c('T4','T4b','T4d')))
+brca_clean4 <- brca_clean3 %>%
+     mutate(neoplasm_stg = fct_collapse(neoplasm_stg,
+                                     StageI = c('Stage I','Stage IA','Stage IB'),
+                                     StageII = c('Stage II','Stage IIA','Stage IIB'),
+                                     StageIII = c('Stage III','Stage IIIA','Stage IIIB','Stage IIIC')),
+            oncotree = fct_collapse(oncotree, Others=c('ACBC','BRCA','BRCNOS','PD','SPC')))
 
 
 # changing level names
-brca_clean3 <- brca_clean3 %>%
-     mutate(disease_free_stt = fct_recode(disease_free_stt, DiseaseFree='0:DiseaseFree', RecurrProgress='1:Recurred/Progressed'),
-          ethnicity = fct_recode(ethnicity, 'hispanic/latino'='HISPANIC OR LATINO', 'not hispanic/latino'='NOT HISPANIC OR LATINO'),
+brca_clean4 <- brca_clean4 %>%
+     mutate(neoplasm_stg = fct_recode(neoplasm_stg, StageIV='Stage IV', NULL='Stage X'),
+          disease_free_stt = fct_recode(disease_free_stt, DiseaseFree='0:DiseaseFree', RecurrProgress='1:Recurred/Progressed'),
+          er_stt = fct_recode(er_stt, NULL='Indeterminate'),
+          ethnicity = fct_recode(ethnicity, 'hispanic/latino'='HISPANIC OR LATINO', 'not.hispanic/latino'='NOT HISPANIC OR LATINO'),
+          her2_stt = fct_recode(her2_stt, NULL='Indeterminate'), 
           menopause = fct_recode(menopause, Intermediate='Indeterminate (neither Pre or Postmenopausal)', Peri='Peri (6-12 months since last menstrual period)', Post='Post (prior bilateral ovariectomy OR >12 mo since LMP with no prior hysterectomy)', Pre='Pre (<6 months since LMP AND no prior bilateral ovariectomy AND not on estrogen replacement)'),
           over_surv_stt = fct_recode(over_surv_stt, living='0:LIVING', deceased='1:DECEASED'),
-          race = fct_recode(race, Asian='ASIAN', 'Black/African.american'='BLACK OR AFRICAN AMERICAN', White='WHITE'),
+          pr_stt = fct_recode(pr_stt, NULL='Indeterminate'),
+          race = fct_recode(race, Black='BLACK OR AFRICAN AMERICAN', White='WHITE', NULL='ASIAN', NULL='AMERICAN INDIAN OR ALASKA NATIVE'),
           staging_system = fct_recode(staging_system, AxilLN='Axillary lymph node dissection alone', NoAxil='No axillary staging', Other='Other (specify)', SentinelAxil='Sentinel lymph node biopsy plus axillary dissection', SentinelLN='Sentinel node biopsy alone'),
           surgical = fct_recode(surgical, RadicalMastectomy='Modified Radical Mastectomy', SimpleMastectomy='Simple Mastectomy'),
           person_neo_stt = fct_recode(person_neo_stt, TumorFree='TUMOR FREE', WithTumor='WITH TUMOR'))
-
 
 # to visualize
 # brca_clean3 %>% 
@@ -229,10 +239,10 @@ brca_clean3 <- brca_clean3 %>%
 #      facet_wrap(~ gender) +
 #      theme(legend.position = 'none')
 
-skim(brca_clean3)
+skim(brca_clean4)
 
 
 ## 8. Saving dataset ------------------------------------
-write_csv(brca_clean3, path = "~/Google Drive/BRCA-TCGAA/Data/brca_clin.csv")
+write_csv(brca_clean4, path = "~/Google Drive/BRCA-TCGAA/Data/brca_clin.csv")
 
 rm(brca_clean3, brca_clean2, brca_clean1, brca_clean, brca_clin_raw, NA_sum, NA_fifty)
