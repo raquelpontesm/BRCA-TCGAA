@@ -80,6 +80,7 @@ luad.mafclin <- read.maf(maf = maf, clinicalData = clinical, isTCGA = T)
 plotmafSummary(maf = luad.maf, rmOutlier = TRUE, addStat = 'median', dashboard = TRUE, titvRaw = FALSE)
 
 # oncoplot for top ten mutated genes (costumize oncoplots!)
+# Multi_Hit genes which are mutated more than once in the same sample
 oncoplot(maf = luad.maf, top = 10)
 
 # transition and transversions
@@ -149,6 +150,7 @@ write.GisticSummary(gistic = luad.gistic, basename = 'luad.gistic')
 
 
 ## Vizualizing Gistic ---------------------------------
+# check GISTIC documentation on tutorial page
 
 # genome plot
 gisticChromPlot(gistic = luad.gistic, markBands = "all")
