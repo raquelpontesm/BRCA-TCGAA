@@ -89,7 +89,7 @@ warnings()
 # t.test(brca_clin$disease_free_mth ~ brca_clin$over_surv_stt)
 
 
-# summarise categorical variables by a categorical variable
+# summarise numeric variables by a categorical variable
 explanatory_num <- brca_clin %>% 
      select_if(is.numeric) %>%
      select(-year_diagnose) %>%
