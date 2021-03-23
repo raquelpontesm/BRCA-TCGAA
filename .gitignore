@@ -2,3 +2,5 @@
 .Rhistory
 .RData
 .Ruserdata
+Data/brca_counts.tsv.gz
+Data/brca_count.RData
