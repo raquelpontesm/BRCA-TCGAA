@@ -3,6 +3,7 @@
 # Installing and Loading Libraries            
 
 if(!require("tidyverse")){install.packages("tidyverse")}
+if(!require("readr")){install.packages("readr")}
 
 # Downloading TCGA-BRCA clinical data from Xenabrowser
 
