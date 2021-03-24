@@ -69,7 +69,7 @@ brca.clini <- cbind(brca.clini, brca.ances[brca.clini$patient_id, ])
 url <- "https://gdc-hub.s3.us-east-1.amazonaws.com/latest/TCGA-BRCA.htseq_counts.tsv.gz"
 destfile <- "brca_counts.tsv.gz"
 download.file(url, destfile)
-brca.count <- read_tsv(gzfile("Data/brca_counts.tsv.gz"))
+brca.count <- read_tsv(gzfile("~/Projeto/BRCA-TCGAA/brca_counts.tsv.gz"))
 brca.count <- as.data.frame(brca.count)
 colnames(brca.count) <- gsub("-", "\\.", colnames(brca.count))
 row.names(brca.count) <- sub("\\..*", "", brca.count$Ensembl_ID)
