@@ -141,9 +141,9 @@ glXYPlot(
 
 # Running DESeq2 Differential Expression for race = white
 
-samplesEA <- brca.clini %>%
-  filter(race %in% c("white")) %>%  
-  dplyr::select(c("sample.type","race")) %>%
+samplesEA <- brca.clini2 %>%
+  filter(eigenstrat %in% c("EA")) %>%  
+  dplyr::select(c("sample.type","eigenstrat")) %>%
   rownames_to_column("samples") %>%
   dplyr::select(samples)  %>%
   as_vector(.)
@@ -151,7 +151,7 @@ samplesEA <- brca.clini %>%
 samplesEAdf <- as.data.frame(samplesEA)
 
 ddsObjEA <- DESeqDataSetFromMatrix(countData = as.matrix(brca.count[,samplesEA]),
-                                   colData = brca.clini[samplesEA,],
+                                   colData = brca.clini2[samplesEA,],
                                    design = as.formula(~ sample.type))
 
 ddsObjEA <- DESeq(ddsObjEA)
@@ -167,11 +167,11 @@ dea.NT.TP.EA <- as.data.frame(res.shrEA) %>%
 
 df.deseqEA <- dea.NT.TP.EA  %>% filter(abs(logFC) >= 3, pvalue <= 0.05)
 dim(df.deseqEA)
-# [1] 1081    9
+# [1] 1108    9
 genes.DEA.NT.vs.TP.lst.EA <- unique(df.deseqEA$symbol)
 write(genes.DEA.NT.vs.TP.lst.EA,  file = "genes.DEA.NT.vs.TP.lst.EA")
 
-save(dea.NT.TP.EA, file = "C:/Users/raque/Downloads/Estagio/dea.NT.TP.EA.rda", compress = T)
+save(dea.NT.TP.EA, file = "~/Projeto/BRCA-TCGAA/Data/dea.NT.TP.EA.rda", compress = T)
 
 cutoffEA <- sort(dea.NT.TP.EA$pvalue)[10]
 shrink.deseq.cutEA <- dea.NT.TP.EA %>% 
@@ -203,11 +203,11 @@ ggplot(shrink.deseq.cutEA, aes(x = logFC, y= -log10(FDR))) +
                    box.padding = 2, 
                    max.overlaps = Inf)
 
-# Running DESeq2 Differential Expression for race = black or african american
+# Running DESeq2 Differential Expression for eigenstrat = aa
 
-samplesAA <- brca.clini %>%
-  filter(race %in% c("black or african american")) %>%  
-  dplyr::select(c("sample.type","race")) %>%
+samplesAA <- brca.clini2 %>%
+  filter(eigenstrat %in% c("AA")) %>%  
+  dplyr::select(c("sample.type","eigenstrat")) %>%
   rownames_to_column("samples") %>%
   dplyr::select(samples)  %>%
   as_vector(.)
@@ -215,7 +215,7 @@ samplesAA <- brca.clini %>%
 samplesAAdf <- as.data.frame(samplesAA)
 
 ddsObjAA <- DESeqDataSetFromMatrix(countData = as.matrix(brca.count[,samplesAA]),
-                                   colData = brca.clini[samplesAA,],
+                                   colData = brca.clini2[samplesAA,],
                                    design = as.formula(~ sample.type))
 
 ddsObjAA <- DESeq(ddsObjAA)
@@ -231,11 +231,11 @@ dea.NT.TP.AA <- as.data.frame(res.shrAA) %>%
 
 df.deseqAA <- dea.NT.TP.AA  %>% filter(abs(logFC) >= 3, pvalue <= 0.05)
 dim(df.deseqAA)
-# [1] 1066    9
+# [1] 1072    9
 genes.DEA.NT.vs.TP.lst.AA <- unique(df.deseqAA$symbol)
 write(genes.DEA.NT.vs.TP.lst.AA,  file = "genes.DEA.NT.vs.TP.lst.AA")
 
-save(dea.NT.TP.AA, file = "C:/Users/raque/Downloads/Estagio/dea.NT.TP.AA.rda", compress = T)
+save(dea.NT.TP.AA, file = "~/Projeto/BRCA-TCGAA/Data/dea.NT.TP.AA.rda", compress = T)
 
 cutoffAA <- sort(dea.NT.TP.AA$pvalue)[10]
 shrink.deseq.cutAA <- dea.NT.TP.AA %>% 

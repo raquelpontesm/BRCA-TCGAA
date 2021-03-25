@@ -4,6 +4,9 @@
 
 if(!require("tidyverse")){install.packages("tidyverse")}
 if(!require("readr")){install.packages("readr")}
+if(!require("dplyr")){install.packages("dplyr")}
+
+install.packages("dplyr")
 
 # Downloading TCGA-BRCA clinical data from Xenabrowser
 
@@ -13,7 +16,7 @@ if(!require("readr")){install.packages("readr")}
 url <- "https://gdc-hub.s3.us-east-1.amazonaws.com/latest/TCGA-BRCA.survival.tsv.gz"
 destfile <- "Data/brca_survival.tsv.gz"
 download.file(url, destfile)
-brca.survi <- read_tsv(gzfile("Data/brca_survival.tsv.gz"))
+brca.survi <- read_tsv(gzfile("~/Projeto/BRCA-TCGAA/Data/brca_survival.tsv.gz"))
 brca.survi <- brca.survi %>% 
   mutate(sample = str_replace_all(sample, "-", ".")) %>% 
   column_to_rownames("sample") %>% 
@@ -26,7 +29,7 @@ brca.survi <- as.data.frame(brca.survi)
 url <- "https://gdc-hub.s3.us-east-1.amazonaws.com/latest/TCGA-BRCA.GDC_phenotype.tsv.gz"
 destfile <- "Data/brca_clinical.tsv.gz"
 download.file(url, destfile)
-brca.clini <- read_tsv(gzfile("Data/brca_clinical.tsv.gz"))
+brca.clini <- read_tsv(gzfile("~/Projeto/BRCA-TCGAA/Data/brca_clinical.tsv.gz"))
 brca.clini <- brca.clini %>%
   dplyr::select(c("submitter_id.samples","prior_malignancy.diagnoses","age_at_initial_pathologic_diagnosis", "gender.demographic",
                   "sample_type_id.samples", "pathologic_M", "pathologic_N", "pathologic_T", "ethnicity.demographic", "race.demographic")) %>% 
@@ -51,7 +54,7 @@ brca.clini <- cbind(brca.clini, brca.survi[rownames(brca.clini),])
 brca.clini$codes <- rownames(brca.clini)
 
 # Loading data form TGCA Ancestry - http://52.25.87.215/TCGAA/cancertype.php?cancertype=BRCA&pageSize=1000
-brca.ances <- read_csv("Data/brca_tcga_ancestry.csv", na = "Not Available")
+brca.ances <- read_csv("~/Projeto/BRCA-TCGAA/Data/brca_tcga_ancestry.csv", na = "Not Available")
 brca.ances <- brca.ances %>%
   rename(patient_id = "Patient ID", 
          cancer.type = "Cancer type", 
@@ -62,6 +65,10 @@ brca.ances <- brca.ances %>%
 
 # Combine the columns of brca.ances
 brca.clini <- cbind(brca.clini, brca.ances[brca.clini$patient_id, ])
+brca.clini2 <- brca.clini %>%
+  dplyr::select(c("prior.dx","age","gender","sample.type","metastasis","neoplasm",
+                  "ajcc.stage","ethnicity","race", "patient_id","eigenstrat","status","obs.time",
+                  "codes"))
 
 # Downloading TCGA-BRCA counts from Xenabrowser
 
@@ -101,6 +108,6 @@ brca.annot <- brca.annot[!duplicated(brca.annot$symbol), ]
 brca.count <- brca.count[brca.annot$ensgene,]
 rownames(brca.count) <- brca.annot$symbol
 brca.clini <- brca.clini[rownames(brca.clini) %in% colnames(brca.count), ]
-brca.count <- brca.count[,colnames(brca.count) %in% rownames(brca.clini)]
+brca.count <- brca.count[,colnames(brca.count) %in% rownames(brca.clini2)]
 
 save(brca.count, brca.clini, brca.annot, file="Data/brca_count.RData", compress=T)
