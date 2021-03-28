@@ -31,36 +31,46 @@ codes.type <- brca.clini %>%
 
 codes.typedf <- as.data.frame(codes.type)
 
-# Running DESeq2 Differential Expression for sample.type
+# Running DESeq2 Differential Expression for sample.type TP (EA vs AA)
 
-ddsObj <- DESeqDataSetFromMatrix(countData = as.matrix(brca.count[,codes.type]),
-                                 colData = brca.clini[codes.type,],
-                                 design = as.formula(~ sample.type))
+samplesTP <- brca.clini2 %>%
+  filter(sample.type %in% c("TP"), eigenstrat %in% c("EA", "AA")) %>%  
+  dplyr::select(c("sample.type","eigenstrat")) %>%
+  rownames_to_column("samples") %>%
+  dplyr::select(samples)  %>%
+  as_vector(.) %>%
+  as.factor(.)
 
-ddsObj <- DESeq(ddsObj)
+samplesTPdf <- as.data.frame(samplesTP)
 
-res.shr <- results(ddsObj)
+ddsObj <- DESeqDataSetFromMatrix(countData = as.matrix(brca.count[,samplesTP]),
+                                 colData = brca.clini2[samplesTP,],
+                                 design = as.formula(~ eigenstrat))
 
-summary(res.shr)
+ddsObjTP <- DESeq(ddsObjTP)
 
-dea.NT.TP <- as.data.frame(res.shr) %>%
+res.shrTP <- results(ddsObjTP)
+
+summary(res.shrTP)
+
+dea.TP <- as.data.frame(res.shrTP) %>%
   rownames_to_column("symbol") %>% 
   left_join(brca.annot, by="symbol") %>% 
   dplyr::rename(logFC=log2FoldChange, FDR=padj)
 
-df.deseq <- dea.NT.TP  %>% filter(abs(logFC) >= 3, pvalue <= 0.05)
-dim(df.deseq)
+df.deseqTP <- dea.TP  %>% filter(abs(logFC) >= 3, pvalue <= 0.05)
+dim(df.deseqTP)
 # [1] 1131    9
-genes.DEA.NT.vs.TP.lst <- unique(df.deseq$symbol)
-write(genes.DEA.NT.vs.TP.lst,  file = "genes.DEA.NT.vs.TP.lst")
+genes.DEA.TP.lst <- unique(df.deseqTP$symbol)
+write(genes.DEA.TP.lst,  file = "genes.DEA.TP.lst")
 
-save(dea.NT.TP, file = "~/BRCA-TCGAA/BRCA-TCGAA/Data/dea.NT.TP.rda", compress = T)
+save(dea.TP, file = "~/BRCA-TCGAA/BRCA-TCGAA/Data/dea.TP.rda", compress = T)
 
-cutoff <- sort(dea.NT.TP$pvalue)[10]
-shrink.deseq.cut <- dea.NT.TP %>% 
-  mutate(TopGeneLabel=ifelse(pvalue<=cutoff, symbol, ""))
+cutoffTP <- sort(dea.TP$pvalue)[10]
+shrink.deseq.cutTP <- dea.TP %>% 
+  mutate(TopGeneLabel=ifelse(pvalue<=cutoffTP, symbol, ""))
 
-ggplot(shrink.deseq.cut, aes(x = log2(baseMean), y=logFC)) + 
+ggplot(shrink.deseq.cutTP, aes(x = log2(baseMean), y=logFC)) + 
   geom_point(aes(colour=FDR < 0.01), pch=20, size=0.5) +
   labs(x="mean of normalised counts", y="log Fold Change") + 
   geom_label_repel(aes(label=TopGeneLabel), 
@@ -71,11 +81,11 @@ ggplot(shrink.deseq.cut, aes(x = log2(baseMean), y=logFC)) +
                    box.padding = 2, 
                    max.overlaps = Inf)
 
-cutoff <- sort(dea.NT.TP$pvalue)[10]
-shrink.deseq.cut <- dea.NT.TP %>% 
-  mutate(TopGeneLabel=ifelse(pvalue<=cutoff, symbol, ""))
+cutoffTP <- sort(dea.NT.TP$pvalue)[10]
+shrink.deseq.cutTP <- dea.TP %>% 
+  mutate(TopGeneLabel=ifelse(pvalue<=cutoffTP, symbol, ""))
 
-ggplot(shrink.deseq.cut, aes(x = logFC, y= -log10(FDR))) + 
+ggplot(shrink.deseq.cutTP, aes(x = logFC, y= -log10(FDR))) + 
   geom_point(aes(colour=FDR < 0.01), pch=20, size=2) +
   labs(x="log Fold Change", y="-log10(FDR)") + 
   geom_label_repel(aes(label=TopGeneLabel), 
@@ -86,60 +96,71 @@ ggplot(shrink.deseq.cut, aes(x = logFC, y= -log10(FDR))) +
                    box.padding = 2, 
                    max.overlaps = Inf)
 
-res.df <- as.data.frame(res.shr)
-res.df$log10MeanNormCount <- log10(res.df$baseMean + 1)
-idx <-(rowSums(counts(ddsObj)) > 0)
-res.df <- res.df[idx,]
-res.df$padj[is.na(res.df$padj)] <- 1
+# Running DESeq2 Differential Expression for sample.type NT (EA vs AA)
 
-status <- as.numeric(res.df$padj < 0.05)
+samplesNT <- brca.clini2 %>%
+  filter(sample.type %in% c("NT"), eigenstrat %in% c("EA", "AA")) %>%  
+  dplyr::select(c("sample.type","eigenstrat")) %>%
+  rownames_to_column("samples") %>%
+  dplyr::select(samples)  %>%
+  as_vector(.)
 
-glMDPlot(res.df[idx,],
-         xval="baseMean",
-         yval="log2FoldChange",
-         counts=counts(ddsObj)[idx,],
-         display.columns=c("GeneID"),
-         anno=data.frame(GeneID=rownames(ddsObj)[idx]),
-         groups = brca.clini[codes.type, "sample.type"],
-         side.xlab = "Group",
-         side.ylab = "Expression (log2)",         
-         samples = brca.clini[codes.type, "codes"],
-         status=status,
-         folder = "MDPlot_BRCA.NT.vs.TP",
-         html = "index",
-         launch=TRUE)
+samplesNTdf <- as.data.frame(samplesNT)
 
-filtTab.deseq <- dea.NT.TP %>%
-  filter(!is.na(FDR)) %>%
-  mutate(`-log10(FDR)` = -log10(FDR))
+ddsObjNT <- DESeqDataSetFromMatrix(countData = as.matrix(brca.count[,samplesNT]),
+                                 colData = brca.clini2[samplesNT,],
+                                 design = as.formula(~ eigenstrat))
 
-filtTab.deseq <- filtTab.deseq  %>%
-  mutate(`-log10(FDR)`=pmin(`-log10(FDR)`))
+ddsObjNT <- DESeq(ddsObjNT)
 
-filtTab.deseq <- filtTab.deseq[!duplicated(filtTab.deseq$symbol), ]
-rownames(filtTab.deseq) <- filtTab.deseq$symbol  
-de <- as.integer(abs(filtTab.deseq$logFC) >= 3 & filtTab.deseq$FDR <= 0.01)
+res.shrNT <- results(ddsObjNT)
 
-glXYPlot(
-  x = filtTab.deseq$logFC,
-  y = -log10(filtTab.deseq$pvalue),
-  xlab = "logFC",
-  ylab = "-log10pvalue (FDR)",
-  main = "NT.vs.TP",
-  counts = log2( counts(ddsObj)[filtTab.deseq$symbol,] ),
-  groups = brca.clini[codes.type, "sample.type"],
-  side.xlab = "Group",
-  side.ylab = "Expression (log2)",
-  samples = brca.clini[codes.type, "codes"],
-  status = de,
-  side.main = "symbol",
-  display.columns = c("symbol", "logFC", "FDR", "ensgene", "description"),
-  anno = filtTab.deseq,
-  folder = "XYPlot_BRCA.NT.vs.TP",
-  html = "index",
-  launch = F)
+summary(res.shrNT)
 
-# Running DESeq2 Differential Expression for race = white
+dea.NT <- as.data.frame(res.shrNT) %>%
+  rownames_to_column("symbol") %>% 
+  left_join(brca.annot, by="symbol") %>% 
+  dplyr::rename(logFC=log2FoldChange, FDR=padj)
+
+df.deseqNT <- dea.NT  %>% filter(abs(logFC) >= 3, pvalue <= 0.05)
+dim(df.deseq)
+# [1] 1131    9
+genes.DEA.NT.lst <- unique(df.deseqNT$symbol)
+write(genes.DEA.NT.lst,  file = "genes.DEA.NT.lst")
+
+save(dea.NT, file = "~/BRCA-TCGAA/BRCA-TCGAA/Data/dea.NT.rda", compress = T)
+
+cutoffNT <- sort(dea.NT$pvalue)[10]
+shrink.deseq.cutNT <- dea.NT %>% 
+  mutate(TopGeneLabel=ifelse(pvalue<=cutoff, symbol, ""))
+
+ggplot(shrink.deseq.cutNT, aes(x = log2(baseMean), y=logFC)) + 
+  geom_point(aes(colour=FDR < 0.01), pch=20, size=0.5) +
+  labs(x="mean of normalised counts", y="log Fold Change") + 
+  geom_label_repel(aes(label=TopGeneLabel), 
+                   seed = 123,
+                   max.time = 3,
+                   max.iter = Inf,
+                   size = 3,
+                   box.padding = 2, 
+                   max.overlaps = Inf)
+
+cutoffNT <- sort(dea.NT$pvalue)[10]
+shrink.deseq.cutNT <- dea.NT %>% 
+  mutate(TopGeneLabel=ifelse(pvalue<=cutoff, symbol, ""))
+
+ggplot(shrink.deseq.cutNT, aes(x = logFC, y= -log10(FDR))) + 
+  geom_point(aes(colour=FDR < 0.01), pch=20, size=2) +
+  labs(x="log Fold Change", y="-log10(FDR)") + 
+  geom_label_repel(aes(label=TopGeneLabel), 
+                   seed = 123,
+                   max.time = 3,
+                   max.iter = Inf,
+                   size = 3,
+                   box.padding = 2, 
+                   max.overlaps = Inf)
+
+# Running DESeq2 Differential Expression for eigenstrat = EA
 
 samplesEA <- brca.clini2 %>%
   filter(eigenstrat %in% c("EA")) %>%  
