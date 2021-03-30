@@ -209,20 +209,53 @@ ggplot(shrink.deseq.cutEA, aes(x = log2(baseMean), y=logFC)) +
                    box.padding = 2, 
                    max.overlaps = Inf)
 
-cutoffEA <- sort(dea.NT.TP.EA$pvalue)[10]
-shrink.deseq.cutEA <- dea.NT.TP.EA %>% 
-  mutate(TopGeneLabel=ifelse(pvalue<=cutoffEA, symbol, ""))
 
-ggplot(shrink.deseq.cutEA, aes(x = logFC, y= -log10(FDR))) + 
+# Cutoffs for for top 20 genes down-regulated and 20 genes up-regulated genes
+cutoffEA_down <- sort(dea.NT.TP.EA[dea.NT.TP.EA$logFC < -3 , "FDR"])[20]
+cutoffEA_up <- sort(dea.NT.TP.EA[dea.NT.TP.EA$logFC > 3 , "FDR"])[20]
+
+p.EA <- ggplot(data = dea.NT.TP.EA, aes(x = logFC, y = -log10(FDR))) + 
   geom_point(aes(colour=FDR < 0.01), pch=20, size=2) +
-  labs(x="log Fold Change", y="-log10(FDR)") + 
-  geom_label_repel(aes(label=TopGeneLabel), 
+  geom_vline(xintercept=c(-3,3), linetype="dotted") +
+  geom_hline(yintercept=c(-log10(0.01)), linetype="dotted") +
+  ggtitle("Differential gene expression of Normal vs Tumor samples of European American ancestry") +
+  xlab("Gene expression change\n log2(FC)") + 
+  ylab("Significance\n -log10(FDR)") +
+  xlim(c(-10,10)) +
+  ylim(c(-10,350)) +
+  theme(plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+  geom_label_repel(data = dea.NT.TP.EA[dea.NT.TP.EA$logFC < -3 & dea.NT.TP.EA$FDR < cutoffEA_down, ], 
+                   aes(label=symbol),
                    seed = 123,
-                   max.time = 3,
-                   max.iter = Inf,
+                   xlim = c(NA, -5),  # down regulated genes labels before -5 logFC
+                   nudge_x = -5,
+                   hjust = 1,
+                   direction = "y",
+                   max.iter = 1e5,
+                   force = 0.5,
                    size = 3,
-                   box.padding = 2, 
+                   max.overlaps = Inf) +          
+  geom_label_repel(data = dea.NT.TP.EA[dea.NT.TP.EA$logFC > 3 & dea.NT.TP.EA$FDR < cutoffEA_up, ],
+                   aes(label=symbol),
+                   seed = 123,
+                   xlim = c(5, NA),  # up regulated genes labels after 5 logFC
+                   nudge_x = 6,
+                   hjust = 0,
+                   direction = "y",
+                   max.iter = 1e5,
+                   force = 0.5,
+                   size = 3,
                    max.overlaps = Inf)
+
+pdf(file="plots/plot_volcano_NT.vs.TP_EA.pdf", width = 14, height = 10)
+par(mar = c(4, 4, 4, 4))
+print(p.EA)
+dev.off()
+
+png(file="plots/plot_volcano_NT.vs.TP_EA.png", width = 770, height = 580, units = "px")
+par(mar = c(4, 4, 4, 4))
+print(p.EA)
+dev.off()
 
 # Running DESeq2 Differential Expression for eigenstrat = aa
 
@@ -273,18 +306,49 @@ ggplot(shrink.deseq.cutAA, aes(x = log2(baseMean), y=logFC)) +
                    box.padding = 2, 
                    max.overlaps = Inf)
 
-cutoffAA <- sort(dea.NT.TP.AA$pvalue)[10]
-shrink.deseq.cutAA <- dea.NT.TP.AA %>% 
-  mutate(TopGeneLabel=ifelse(pvalue<=cutoffAA, symbol, ""))
+# Cutoffs for for top 20 genes down-regulated and 20 genes up-regulated genes
+cutoffAA_down <- sort(dea.NT.TP.AA[dea.NT.TP.AA$logFC < -3 , "FDR"])[20]
+cutoffAA_up <- sort(dea.NT.TP.AA[dea.NT.TP.AA$logFC > 3 , "FDR"])[20]
 
-ggplot(shrink.deseq.cutAA, aes(x = logFC, y= -log10(FDR))) + 
+p.AA <- ggplot(data = dea.NT.TP.AA, aes(x = logFC, y = -log10(FDR))) + 
   geom_point(aes(colour=FDR < 0.01), pch=20, size=2) +
-  labs(x="log Fold Change", y="-log10(FDR)") + 
-  geom_label_repel(aes(label=TopGeneLabel), 
+  geom_vline(xintercept=c(-3,3), linetype="dotted") +
+  geom_hline(yintercept=c(-log10(0.01)), linetype="dotted") +
+  ggtitle("Differential gene expression of Normal vs Tumor samples of African American ancestry") +
+  xlab("Gene expression change\n log2(FC)") + 
+  ylab("Significance\n -log10(FDR)") +
+  xlim(c(-10,10)) +
+  theme(plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+  geom_label_repel(data = dea.NT.TP.AA[dea.NT.TP.AA$logFC < -3 & dea.NT.TP.AA$FDR < cutoffAA_down, ], 
+                   aes(label=symbol),
                    seed = 123,
-                   max.time = 3,
-                   max.iter = Inf,
+                   xlim = c(NA, -5),  # down regulated genes labels before -5 logFC
+                   nudge_x = -5,
+                   hjust = 1,
+                   direction = "y",
+                   max.iter = 1e5,
+                   force = 0.5,
                    size = 3,
-                   box.padding = 2, 
+                   max.overlaps = Inf) +          
+  geom_label_repel(data = dea.NT.TP.AA[dea.NT.TP.AA$logFC > 3 & dea.NT.TP.AA$FDR < cutoffAA_up, ],
+                   aes(label=symbol),
+                   seed = 123,
+                   xlim = c(5, NA),  # up regulated genes labels after 5 logFC
+                   nudge_x = 6,
+                   hjust = 0,
+                   direction = "y",
+                   max.iter = 1e5,
+                   force = 0.5,
+                   size = 3,
                    max.overlaps = Inf)
+
+pdf(file="plots/plot_volcano_NT.vs.TP_AA.pdf", width = 14, height = 10)
+par(mar = c(4, 4, 4, 4))
+print(p.AA)
+dev.off()
+
+png(file="plots/plot_volcano_NT.vs.TP_AA.png", width = 770, height = 580, units = "px")
+par(mar = c(4, 4, 4, 4))
+print(p.AA)
+dev.off()
 
