@@ -43,7 +43,7 @@ samplesTP <- brca.clini2 %>%
 
 samplesTPdf <- as.data.frame(samplesTP)
 
-ddsObj <- DESeqDataSetFromMatrix(countData = as.matrix(brca.count[,samplesTP]),
+ddsObjTP <- DESeqDataSetFromMatrix(countData = as.matrix(brca.count[,samplesTP]),
                                  colData = brca.clini2[samplesTP,],
                                  design = as.formula(~ eigenstrat))
 
@@ -60,11 +60,11 @@ dea.TP <- as.data.frame(res.shrTP) %>%
 
 df.deseqTP <- dea.TP  %>% filter(abs(logFC) >= 3, pvalue <= 0.05)
 dim(df.deseqTP)
-# [1] 1131    9
+# [1] 586    9
 genes.DEA.TP.lst <- unique(df.deseqTP$symbol)
 write(genes.DEA.TP.lst,  file = "genes.DEA.TP.lst")
 
-save(dea.TP, file = "~/BRCA-TCGAA/BRCA-TCGAA/Data/dea.TP.rda", compress = T)
+save(dea.TP, file = "Data/dea.TP.rda", compress = T)
 
 cutoffTP <- sort(dea.TP$pvalue)[10]
 shrink.deseq.cutTP <- dea.TP %>% 
@@ -81,7 +81,7 @@ ggplot(shrink.deseq.cutTP, aes(x = log2(baseMean), y=logFC)) +
                    box.padding = 2, 
                    max.overlaps = Inf)
 
-cutoffTP <- sort(dea.NT.TP$pvalue)[10]
+cutoffTP <- sort(dea.TP$pvalue)[10]
 shrink.deseq.cutTP <- dea.TP %>% 
   mutate(TopGeneLabel=ifelse(pvalue<=cutoffTP, symbol, ""))
 
@@ -103,7 +103,8 @@ samplesNT <- brca.clini2 %>%
   dplyr::select(c("sample.type","eigenstrat")) %>%
   rownames_to_column("samples") %>%
   dplyr::select(samples)  %>%
-  as_vector(.)
+  as_vector(.) %>%
+  as.factor(.)
 
 samplesNTdf <- as.data.frame(samplesNT)
 
@@ -123,16 +124,16 @@ dea.NT <- as.data.frame(res.shrNT) %>%
   dplyr::rename(logFC=log2FoldChange, FDR=padj)
 
 df.deseqNT <- dea.NT  %>% filter(abs(logFC) >= 3, pvalue <= 0.05)
-dim(df.deseq)
-# [1] 1131    9
+dim(df.deseqNT)
+# [1] 629    9
 genes.DEA.NT.lst <- unique(df.deseqNT$symbol)
 write(genes.DEA.NT.lst,  file = "genes.DEA.NT.lst")
 
-save(dea.NT, file = "~/BRCA-TCGAA/BRCA-TCGAA/Data/dea.NT.rda", compress = T)
+save(dea.NT, file = "Data/dea.NT.rda", compress = T)
 
 cutoffNT <- sort(dea.NT$pvalue)[10]
 shrink.deseq.cutNT <- dea.NT %>% 
-  mutate(TopGeneLabel=ifelse(pvalue<=cutoff, symbol, ""))
+  mutate(TopGeneLabel=ifelse(pvalue<=cutoffNT, symbol, ""))
 
 ggplot(shrink.deseq.cutNT, aes(x = log2(baseMean), y=logFC)) + 
   geom_point(aes(colour=FDR < 0.01), pch=20, size=0.5) +
@@ -147,7 +148,7 @@ ggplot(shrink.deseq.cutNT, aes(x = log2(baseMean), y=logFC)) +
 
 cutoffNT <- sort(dea.NT$pvalue)[10]
 shrink.deseq.cutNT <- dea.NT %>% 
-  mutate(TopGeneLabel=ifelse(pvalue<=cutoff, symbol, ""))
+  mutate(TopGeneLabel=ifelse(pvalue<=cutoffNT, symbol, ""))
 
 ggplot(shrink.deseq.cutNT, aes(x = logFC, y= -log10(FDR))) + 
   geom_point(aes(colour=FDR < 0.01), pch=20, size=2) +
@@ -167,7 +168,8 @@ samplesEA <- brca.clini2 %>%
   dplyr::select(c("sample.type","eigenstrat")) %>%
   rownames_to_column("samples") %>%
   dplyr::select(samples)  %>%
-  as_vector(.)
+  as_vector(.) %>%
+  as.factor(.)
 
 samplesEAdf <- as.data.frame(samplesEA)
 
@@ -188,11 +190,11 @@ dea.NT.TP.EA <- as.data.frame(res.shrEA) %>%
 
 df.deseqEA <- dea.NT.TP.EA  %>% filter(abs(logFC) >= 3, pvalue <= 0.05)
 dim(df.deseqEA)
-# [1] 1108    9
+# [1] 31    9
 genes.DEA.NT.vs.TP.lst.EA <- unique(df.deseqEA$symbol)
 write(genes.DEA.NT.vs.TP.lst.EA,  file = "genes.DEA.NT.vs.TP.lst.EA")
 
-save(dea.NT.TP.EA, file = "~/Projeto/BRCA-TCGAA/Data/dea.NT.TP.EA.rda", compress = T)
+save(dea.NT.TP.EA, file = "Data/dea.NT.TP.EA.rda", compress = T)
 
 cutoffEA <- sort(dea.NT.TP.EA$pvalue)[10]
 shrink.deseq.cutEA <- dea.NT.TP.EA %>% 
@@ -263,8 +265,13 @@ samplesAA <- brca.clini2 %>%
   filter(eigenstrat %in% c("AA")) %>%  
   dplyr::select(c("sample.type","eigenstrat")) %>%
   rownames_to_column("samples") %>%
-  dplyr::select(samples)  %>%
-  as_vector(.)
+  dplyr::pull(samples)
+
+brca.clini2$eigenstrat <- as.factor(brca.clini2$eigenstrat)
+brca.clini2$sample.type <- as.factor(brca.clini2$sample.type)
+
+setdiff(samplesAA,names(brca.count))
+samplesAA <- intersect(samplesAA,names(brca.count))
 
 samplesAAdf <- as.data.frame(samplesAA)
 
@@ -285,11 +292,11 @@ dea.NT.TP.AA <- as.data.frame(res.shrAA) %>%
 
 df.deseqAA <- dea.NT.TP.AA  %>% filter(abs(logFC) >= 3, pvalue <= 0.05)
 dim(df.deseqAA)
-# [1] 1072    9
+# [1] 1072 121    9
 genes.DEA.NT.vs.TP.lst.AA <- unique(df.deseqAA$symbol)
 write(genes.DEA.NT.vs.TP.lst.AA,  file = "genes.DEA.NT.vs.TP.lst.AA")
 
-save(dea.NT.TP.AA, file = "~/Projeto/BRCA-TCGAA/Data/dea.NT.TP.AA.rda", compress = T)
+save(dea.NT.TP.AA, file = "Data/dea.NT.TP.AA.rda", compress = T)
 
 cutoffAA <- sort(dea.NT.TP.AA$pvalue)[10]
 shrink.deseq.cutAA <- dea.NT.TP.AA %>% 

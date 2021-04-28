@@ -13,10 +13,10 @@ install.packages("dplyr")
 # Survival data
 # https://xenabrowser.net/datapages/?dataset=TCGA-BRCA.survival.tsv&host=https%3A%2F%2Fgdc.xenahubs.net&removeHub=https%3A%2F%2Fxena.treehouse.gi.ucsc.edu%3A443
 
-url <- "https://gdc-hub.s3.us-east-1.amazonaws.com/latest/TCGA-BRCA.survival.tsv.gz"
+url <- "https://gdc-hub.s3.us-east-1.amazonaws.com/download/TCGA-BRCA.survival.tsv.gz"
 destfile <- "Data/brca_survival.tsv.gz"
 download.file(url, destfile)
-brca.survi <- read_tsv(gzfile("~/Projeto/BRCA-TCGAA/Data/brca_survival.tsv.gz"))
+brca.survi <- read_tsv(gzfile("Data/brca_survival.tsv.gz"))
 brca.survi <- brca.survi %>% 
   mutate(sample = str_replace_all(sample, "-", ".")) %>% 
   column_to_rownames("sample") %>% 
@@ -26,14 +26,14 @@ brca.survi <- as.data.frame(brca.survi)
 
 # Clinical data
 # https://xenabrowser.net/datapages/?dataset=TCGA-BRCA.GDC_phenotype.tsv&host=https%3A%2F%2Fgdc.xenahubs.net&removeHub=https%3A%2F%2Fxena.treehouse.gi.ucsc.edu%3A443
-url <- "https://gdc-hub.s3.us-east-1.amazonaws.com/latest/TCGA-BRCA.GDC_phenotype.tsv.gz"
+url <- "https://gdc-hub.s3.us-east-1.amazonaws.com/download/TCGA-BRCA.GDC_phenotype.tsv.gz"
 destfile <- "Data/brca_clinical.tsv.gz"
 download.file(url, destfile)
-brca.clini <- read_tsv(gzfile("~/Projeto/BRCA-TCGAA/Data/brca_clinical.tsv.gz"))
+brca.clini <- read_tsv(gzfile("Data/brca_clinical.tsv.gz"))
 brca.clini <- brca.clini %>%
   dplyr::select(c("submitter_id.samples","prior_malignancy.diagnoses","age_at_initial_pathologic_diagnosis", "gender.demographic",
                   "sample_type_id.samples", "pathologic_M", "pathologic_N", "pathologic_T", "ethnicity.demographic", "race.demographic")) %>% 
-  rename(sample = 'submitter_id.samples', 
+  dplyr::rename(sample = 'submitter_id.samples', 
          prior.dx = 'prior_malignancy.diagnoses', 
          age = 'age_at_initial_pathologic_diagnosis', 
          gender = 'gender.demographic',
@@ -43,40 +43,48 @@ brca.clini <- brca.clini %>%
          ajcc.stage = 'pathologic_T',
          ethnicity = 'ethnicity.demographic',
          race = 'race.demographic') %>% 
-  mutate(sample.type = str_replace_all(sample.type, "01", "TP") ) %>% 
-  mutate(sample.type = str_replace_all(sample.type, "11", "NT") ) %>% 
-  filter(sample.type %in% c("TP", "NT")) %>%  
-  mutate(sample = str_replace_all(sample, "-", ".")) %>% 
-  filter(sample %in% row.names(brca.survi)) %>% 
+  dplyr::mutate(sample.type = str_replace_all(sample.type, "01", "TP") ) %>% 
+  dplyr::mutate(sample.type = str_replace_all(sample.type, "11", "NT") ) %>% 
+  dplyr::filter(sample.type %in% c("TP", "NT")) %>%  
+  dplyr::mutate(sample = str_replace_all(sample, "-", ".")) %>% 
+  dplyr::filter(sample %in% row.names(brca.survi)) %>% 
   column_to_rownames(var = "sample") 
 
 brca.clini <- cbind(brca.clini, brca.survi[rownames(brca.clini),])
 brca.clini$codes <- rownames(brca.clini)
 
 # Loading data form TGCA Ancestry - http://52.25.87.215/TCGAA/cancertype.php?cancertype=BRCA&pageSize=1000
-brca.ances <- read_csv("~/Projeto/BRCA-TCGAA/Data/brca_tcga_ancestry.csv", na = "Not Available")
+brca.ances <- read_csv("Data/brca_tcga_ancestry.csv", na = "Not Available")
 brca.ances <- brca.ances %>%
   rename(patient_id = "Patient ID", 
          cancer.type = "Cancer type", 
-         race = 'Self-reported race', 
-         ethnicity = 'Self-reported ethnicity',
+         race_ances = 'Self-reported race', 
+         ethnicity_ances = 'Self-reported ethnicity',
          eigenstrat = 'EIGENSTRAT') %>% 
   column_to_rownames(var = "patient_id") 
 
 # Combine the columns of brca.ances
 brca.clini <- cbind(brca.clini, brca.ances[brca.clini$patient_id, ])
 brca.clini2 <- brca.clini %>%
+  dplyr::mutate(
+    eigenstrat = as.factor(eigenstrat),
+    sample.type =  as.factor(sample.type),
+    metastasis = as.factor(metastasis),
+    neoplasm = as.factor(neoplasm),
+    gender = as.factor(gender)
+  )  %>%
   dplyr::select(c("prior.dx","age","gender","sample.type","metastasis","neoplasm",
                   "ajcc.stage","ethnicity","race", "patient_id","eigenstrat","status","obs.time",
                   "codes"))
+  
 
 # Downloading TCGA-BRCA counts from Xenabrowser
 
 # https://xenabrowser.net/datapages/?dataset=TCGA-BRCA.htseq_counts.tsv&host=https%3A%2F%2Fgdc.xenahubs.net&removeHub=https%3A%2F%2Fxena.treehouse.gi.ucsc.edu%3A443
-url <- "https://gdc-hub.s3.us-east-1.amazonaws.com/latest/TCGA-BRCA.htseq_counts.tsv.gz"
-destfile <- "brca_counts.tsv.gz"
+url <- "https://gdc-hub.s3.us-east-1.amazonaws.com/download/TCGA-BRCA.htseq_counts.tsv.gz"
+destfile <- "Data/brca_counts.tsv.gz"
 download.file(url, destfile)
-brca.count <- read_tsv(gzfile("~/Projeto/BRCA-TCGAA/brca_counts.tsv.gz"))
+brca.count <- read_tsv(gzfile(destfile))
 brca.count <- as.data.frame(brca.count)
 colnames(brca.count) <- gsub("-", "\\.", colnames(brca.count))
 row.names(brca.count) <- sub("\\..*", "", brca.count$Ensembl_ID)
@@ -108,6 +116,7 @@ brca.annot <- brca.annot[!duplicated(brca.annot$symbol), ]
 brca.count <- brca.count[brca.annot$ensgene,]
 rownames(brca.count) <- brca.annot$symbol
 brca.clini <- brca.clini[rownames(brca.clini) %in% colnames(brca.count), ]
+brca.clini2 <- brca.clini2[rownames(brca.clini2) %in% colnames(brca.count), ]
 brca.count <- brca.count[,colnames(brca.count) %in% rownames(brca.clini2)]
 
-save(brca.count, brca.clini, brca.annot, file="Data/brca_count.RData", compress=T)
+save(brca.count, brca.clini, brca.clini2, brca.annot, file="Data/brca_count.RData", compress=T)
