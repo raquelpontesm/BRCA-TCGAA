@@ -31,15 +31,23 @@ codes.type <- brca.clini %>%
 
 codes.typedf <- as.data.frame(codes.type)
 
+brca.clini2$eigenstrat <- as.factor(brca.clini2$eigenstrat)
+brca.clini2$sample.type <- as.factor(brca.clini2$sample.type)
+
 # Running DESeq2 Differential Expression for sample.type TP (EA vs AA)
 
 samplesTP <- brca.clini2 %>%
   filter(sample.type %in% c("TP"), eigenstrat %in% c("EA", "AA")) %>%  
   dplyr::select(c("sample.type","eigenstrat")) %>%
   rownames_to_column("samples") %>%
-  dplyr::select(samples)  %>%
-  as_vector(.) %>%
-  as.factor(.)
+  dplyr::pull(samples)
+
+  # dplyr::select(samples)  %>%
+  # as_vector(.) %>%
+  # as.factor(.)
+
+setdiff(samplesTP,names(brca.count))
+samplesTP <- intersect(samplesTP,names(brca.count))
 
 samplesTPdf <- as.data.frame(samplesTP)
 
@@ -60,41 +68,87 @@ dea.TP <- as.data.frame(res.shrTP) %>%
 
 df.deseqTP <- dea.TP  %>% filter(abs(logFC) >= 3, pvalue <= 0.05)
 dim(df.deseqTP)
-# [1] 586    9
+# [1] 586  66s  9
 genes.DEA.TP.lst <- unique(df.deseqTP$symbol)
 write(genes.DEA.TP.lst,  file = "genes.DEA.TP.lst")
 
 save(dea.TP, file = "Data/dea.TP.rda", compress = T)
 
-cutoffTP <- sort(dea.TP$pvalue)[10]
-shrink.deseq.cutTP <- dea.TP %>% 
-  mutate(TopGeneLabel=ifelse(pvalue<=cutoffTP, symbol, ""))
+cutoffTP_down <- sort(dea.TP[dea.TP$logFC < -3 , "FDR"])[20]
+cutoffTP_up <- sort(dea.TP[dea.TP$logFC > 3 , "FDR"])[20]
 
-ggplot(shrink.deseq.cutTP, aes(x = log2(baseMean), y=logFC)) + 
-  geom_point(aes(colour=FDR < 0.01), pch=20, size=0.5) +
-  labs(x="mean of normalised counts", y="log Fold Change") + 
-  geom_label_repel(aes(label=TopGeneLabel), 
-                   seed = 123,
-                   max.time = 3,
-                   max.iter = Inf,
-                   size = 3,
-                   box.padding = 2, 
-                   max.overlaps = Inf)
-
-cutoffTP <- sort(dea.TP$pvalue)[10]
-shrink.deseq.cutTP <- dea.TP %>% 
-  mutate(TopGeneLabel=ifelse(pvalue<=cutoffTP, symbol, ""))
-
-ggplot(shrink.deseq.cutTP, aes(x = logFC, y= -log10(FDR))) + 
+p.TP <- ggplot(data = dea.TP, aes(x = logFC, y = -log10(FDR))) + 
   geom_point(aes(colour=FDR < 0.01), pch=20, size=2) +
-  labs(x="log Fold Change", y="-log10(FDR)") + 
-  geom_label_repel(aes(label=TopGeneLabel), 
+  geom_vline(xintercept=c(-3,3), linetype="dotted") +
+  geom_hline(yintercept=c(-log10(0.01)), linetype="dotted") +
+  ggtitle("Differential gene expression of European American vs African American ancestry of Tumor samples") +
+  xlab("Gene expression change\n log2(FC)") + 
+  ylab("Significance\n -log10(FDR)") +
+  xlim(c(-10,10)) +
+  ylim(c(-10,350)) +
+  theme(plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+  geom_label_repel(data = dea.TP[dea.TP$logFC < -3 & dea.TP$FDR < cutoffTP_down, ], 
+                   aes(label=symbol),
                    seed = 123,
-                   max.time = 3,
-                   max.iter = Inf,
+                   xlim = c(NA, -5),  # down regulated genes labels before -5 logFC
+                   nudge_x = -5,
+                   hjust = 1,
+                   direction = "y",
+                   max.iter = 1e5,
+                   force = 0.5,
                    size = 3,
-                   box.padding = 2, 
+                   max.overlaps = Inf) +          
+  geom_label_repel(data = dea.TP[dea.TP$logFC > 3 & dea.TP$FDR < cutoffTP_up, ],
+                   aes(label=symbol),
+                   seed = 123,
+                   xlim = c(5, NA),  # up regulated genes labels after 5 logFC
+                   nudge_x = 6,
+                   hjust = 0,
+                   direction = "y",
+                   max.iter = 1e5,
+                   force = 0.5,
+                   size = 3,
                    max.overlaps = Inf)
+
+pdf(file="plots/plot_volcano_TP.pdf", width = 14, height = 10)
+par(mar = c(4, 4, 4, 4))
+print(p.TP)
+dev.off()
+
+png(file="plots/plot_volcano_TP.png", width = 770, height = 580, units = "px")
+par(mar = c(4, 4, 4, 4))
+print(p.TP)
+dev.off()
+
+# cutoffTP <- sort(dea.TP$pvalue)[10]
+# shrink.deseq.cutTP <- dea.TP %>% 
+#   mutate(TopGeneLabel=ifelse(pvalue<=cutoffTP, symbol, ""))
+# 
+# ggplot(shrink.deseq.cutTP, aes(x = log2(baseMean), y=logFC)) + 
+#   geom_point(aes(colour=FDR < 0.01), pch=20, size=0.5) +
+#   labs(x="mean of normalised counts", y="log Fold Change") + 
+#   geom_label_repel(aes(label=TopGeneLabel), 
+#                    seed = 123,
+#                    max.time = 3,
+#                    max.iter = Inf,
+#                    size = 3,
+#                    box.padding = 2, 
+#                    max.overlaps = Inf)
+# 
+# cutoffTP <- sort(dea.TP$pvalue)[10]
+# shrink.deseq.cutTP <- dea.TP %>% 
+#   mutate(TopGeneLabel=ifelse(pvalue<=cutoffTP, symbol, ""))
+# 
+# ggplot(shrink.deseq.cutTP, aes(x = logFC, y= -log10(FDR))) + 
+#   geom_point(aes(colour=FDR < 0.01), pch=20, size=2) +
+#   labs(x="log Fold Change", y="-log10(FDR)") + 
+#   geom_label_repel(aes(label=TopGeneLabel), 
+#                    seed = 123,
+#                    max.time = 3,
+#                    max.iter = Inf,
+#                    size = 3,
+#                    box.padding = 2, 
+#                    max.overlaps = Inf)
 
 # Running DESeq2 Differential Expression for sample.type NT (EA vs AA)
 
@@ -102,11 +156,16 @@ samplesNT <- brca.clini2 %>%
   filter(sample.type %in% c("NT"), eigenstrat %in% c("EA", "AA")) %>%  
   dplyr::select(c("sample.type","eigenstrat")) %>%
   rownames_to_column("samples") %>%
-  dplyr::select(samples)  %>%
-  as_vector(.) %>%
-  as.factor(.)
+  dplyr::pull(samples)
 
-samplesNTdf <- as.data.frame(samplesNT)
+# dplyr::select(samples)  %>%
+# as_vector(.) %>%
+# as.factor(.)
+
+setdiff(samplesNT,names(brca.count))
+samplesNT <- intersect(samplesNT,names(brca.count))
+
+samplesNTdf <- as.data.frame(samplesNT) 
 
 ddsObjNT <- DESeqDataSetFromMatrix(countData = as.matrix(brca.count[,samplesNT]),
                                  colData = brca.clini2[samplesNT,],
@@ -125,41 +184,87 @@ dea.NT <- as.data.frame(res.shrNT) %>%
 
 df.deseqNT <- dea.NT  %>% filter(abs(logFC) >= 3, pvalue <= 0.05)
 dim(df.deseqNT)
-# [1] 629    9
+# [1] 629  118  9
 genes.DEA.NT.lst <- unique(df.deseqNT$symbol)
 write(genes.DEA.NT.lst,  file = "genes.DEA.NT.lst")
 
 save(dea.NT, file = "Data/dea.NT.rda", compress = T)
 
-cutoffNT <- sort(dea.NT$pvalue)[10]
-shrink.deseq.cutNT <- dea.NT %>% 
-  mutate(TopGeneLabel=ifelse(pvalue<=cutoffNT, symbol, ""))
+cutoffNT_down <- sort(dea.NT[dea.NT$logFC < -3 , "FDR"])[20]
+cutoffNT_up <- sort(dea.NT[dea.NT$logFC > 3 , "FDR"])[20]
 
-ggplot(shrink.deseq.cutNT, aes(x = log2(baseMean), y=logFC)) + 
-  geom_point(aes(colour=FDR < 0.01), pch=20, size=0.5) +
-  labs(x="mean of normalised counts", y="log Fold Change") + 
-  geom_label_repel(aes(label=TopGeneLabel), 
-                   seed = 123,
-                   max.time = 3,
-                   max.iter = Inf,
-                   size = 3,
-                   box.padding = 2, 
-                   max.overlaps = Inf)
-
-cutoffNT <- sort(dea.NT$pvalue)[10]
-shrink.deseq.cutNT <- dea.NT %>% 
-  mutate(TopGeneLabel=ifelse(pvalue<=cutoffNT, symbol, ""))
-
-ggplot(shrink.deseq.cutNT, aes(x = logFC, y= -log10(FDR))) + 
+p.NT <- ggplot(data = dea.NT, aes(x = logFC, y = -log10(FDR))) + 
   geom_point(aes(colour=FDR < 0.01), pch=20, size=2) +
-  labs(x="log Fold Change", y="-log10(FDR)") + 
-  geom_label_repel(aes(label=TopGeneLabel), 
+  geom_vline(xintercept=c(-3,3), linetype="dotted") +
+  geom_hline(yintercept=c(-log10(0.01)), linetype="dotted") +
+  ggtitle("Differential gene expression of European American vs African American ancestry of Normal samples") +
+  xlab("Gene expression change\n log2(FC)") + 
+  ylab("Significance\n -log10(FDR)") +
+  xlim(c(-10,10)) +
+  ylim(c(-10,350)) +
+  theme(plot.margin = unit(c(0, 0, 0, 0), "cm")) +
+  geom_label_repel(data = dea.NT[dea.NT$logFC < -3 & dea.NT$FDR < cutoffNT_down, ], 
+                   aes(label=symbol),
                    seed = 123,
-                   max.time = 3,
-                   max.iter = Inf,
+                   xlim = c(NA, -5),  # down regulated genes labels before -5 logFC
+                   nudge_x = -5,
+                   hjust = 1,
+                   direction = "y",
+                   max.iter = 1e5,
+                   force = 0.5,
                    size = 3,
-                   box.padding = 2, 
+                   max.overlaps = Inf) +          
+  geom_label_repel(data = dea.NT[dea.NT$logFC > 3 & dea.NT$FDR < cutoffNT_up, ],
+                   aes(label=symbol),
+                   seed = 123,
+                   xlim = c(5, NA),  # up regulated genes labels after 5 logFC
+                   nudge_x = 6,
+                   hjust = 0,
+                   direction = "y",
+                   max.iter = 1e5,
+                   force = 0.5,
+                   size = 3,
                    max.overlaps = Inf)
+
+pdf(file="plots/plot_volcano_NT.pdf", width = 14, height = 10)
+par(mar = c(4, 4, 4, 4))
+print(p.NT)
+dev.off()
+
+png(file="plots/plot_volcano_NT.png", width = 770, height = 580, units = "px")
+par(mar = c(4, 4, 4, 4))
+print(p.NT)
+dev.off()
+
+# cutoffNT <- sort(dea.NT$pvalue)[10]
+# shrink.deseq.cutNT <- dea.NT %>% 
+#   mutate(TopGeneLabel=ifelse(pvalue<=cutoffNT, symbol, ""))
+# 
+# ggplot(shrink.deseq.cutNT, aes(x = log2(baseMean), y=logFC)) + 
+#   geom_point(aes(colour=FDR < 0.01), pch=20, size=0.5) +
+#   labs(x="mean of normalised counts", y="log Fold Change") + 
+#   geom_label_repel(aes(label=TopGeneLabel), 
+#                    seed = 123,
+#                    max.time = 3,
+#                    max.iter = Inf,
+#                    size = 3,
+#                    box.padding = 2, 
+#                    max.overlaps = Inf)
+# 
+# cutoffNT <- sort(dea.NT$pvalue)[10]
+# shrink.deseq.cutNT <- dea.NT %>% 
+#   mutate(TopGeneLabel=ifelse(pvalue<=cutoffNT, symbol, ""))
+# 
+# ggplot(shrink.deseq.cutNT, aes(x = logFC, y= -log10(FDR))) + 
+#   geom_point(aes(colour=FDR < 0.01), pch=20, size=2) +
+#   labs(x="log Fold Change", y="-log10(FDR)") + 
+#   geom_label_repel(aes(label=TopGeneLabel), 
+#                    seed = 123,
+#                    max.time = 3,
+#                    max.iter = Inf,
+#                    size = 3,
+#                    box.padding = 2, 
+#                    max.overlaps = Inf)
 
 # Running DESeq2 Differential Expression for eigenstrat = EA
 
@@ -167,9 +272,13 @@ samplesEA <- brca.clini2 %>%
   filter(eigenstrat %in% c("EA")) %>%  
   dplyr::select(c("sample.type","eigenstrat")) %>%
   rownames_to_column("samples") %>%
-  dplyr::select(samples)  %>%
-  as_vector(.) %>%
-  as.factor(.)
+  dplyr::pull(samples)
+  # dplyr::select(samples)  %>%
+  # as_vector(.) %>%
+  # as.factor(.)
+
+setdiff(samplesEA,names(brca.count))
+samplesEA <- intersect(samplesEA,names(brca.count))
 
 samplesEAdf <- as.data.frame(samplesEA)
 
@@ -190,7 +299,7 @@ dea.NT.TP.EA <- as.data.frame(res.shrEA) %>%
 
 df.deseqEA <- dea.NT.TP.EA  %>% filter(abs(logFC) >= 3, pvalue <= 0.05)
 dim(df.deseqEA)
-# [1] 31    9
+# [1] 31 1108   9
 genes.DEA.NT.vs.TP.lst.EA <- unique(df.deseqEA$symbol)
 write(genes.DEA.NT.vs.TP.lst.EA,  file = "genes.DEA.NT.vs.TP.lst.EA")
 
